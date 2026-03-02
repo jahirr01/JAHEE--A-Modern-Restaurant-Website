@@ -13,28 +13,44 @@ const app = express();
 // Load env variables
 dotenv.config({ path: path.resolve("./config/config.env") });
 
-// ✅ CORS CONFIG (FIXED)
+/* ✅ PRODUCTION-SAFE CORS CONFIG */
+const allowedOrigins = [
+  "http://localhost:5173", // Vite local
+  "http://localhost:3000", // React local (if used)
+  "https://jahee-a-modern-restaurant-website-u.vercel.app" // Vercel frontend
+];
+
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    "http://localhost:3000"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: function (origin, callback) {
+    // allow requests with no origin (like Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// Body parsers
+// ✅ Handle preflight explicitly
+app.options("*", cors());
+
+/* -------------------- Middleware -------------------- */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// DB connection
+/* -------------------- Database -------------------- */
 dbconnection();
 
-// Routes
+/* -------------------- Routes -------------------- */
 app.use("/api/v1/reservation", reservationRouter);
 app.use("/api/v1/custom-order", customOrderRouter);
 
-// Error middleware
+/* -------------------- Error Handler -------------------- */
 app.use(errorMiddleware);
 
 export default app;
