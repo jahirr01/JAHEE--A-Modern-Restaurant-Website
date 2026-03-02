@@ -10,47 +10,65 @@ import customOrderRouter from "./routes/customOrderRoute.js";
 
 const app = express();
 
-// Load env variables
+/* -------------------- Load Environment Variables -------------------- */
 dotenv.config({ path: path.resolve("./config/config.env") });
 
-/* ✅ PRODUCTION-SAFE CORS CONFIG */
+/* -------------------- CORS CONFIGURATION -------------------- */
+/* Allow both local development and deployed frontend */
 const allowedOrigins = [
   "http://localhost:5173", // Vite local
   "http://localhost:3000", // React local (if used)
   "https://jahee-a-modern-restaurant-website-u.vercel.app" // Vercel frontend
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like Postman)
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (Postman, curl, etc.)
+      if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error("Not allowed by CORS"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true
-}));
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
-// ✅ Handle preflight explicitly
-app.options("*", cors());
+/* -------------------- SAFE PREFLIGHT HANDLER (Fix for Node 22) -------------------- */
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin);
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
 
-/* -------------------- Middleware -------------------- */
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200); // Respond to preflight
+  }
+
+  next();
+});
+
+/* -------------------- Body Parsing Middleware -------------------- */
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/* -------------------- Database -------------------- */
+/* -------------------- Database Connection -------------------- */
 dbconnection();
 
 /* -------------------- Routes -------------------- */
 app.use("/api/v1/reservation", reservationRouter);
 app.use("/api/v1/custom-order", customOrderRouter);
 
-/* -------------------- Error Handler -------------------- */
+/* -------------------- Error Handling -------------------- */
 app.use(errorMiddleware);
 
 export default app;
